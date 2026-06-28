@@ -41,6 +41,11 @@ class ClientRepository {
     return Client.fromJson(res.data['data']);
   }
 
+  Future<Client> update(String id, Map<String, dynamic> body) async {
+    final res = await _dio.put('/clients/$id', data: body);
+    return Client.fromJson(res.data['data']);
+  }
+
   Future<void> complete(String id) => _dio.post('/clients/$id/complete');
   Future<void> delete(String id) => _dio.delete('/clients/$id');
 
@@ -68,6 +73,11 @@ class LenderRepository {
 
   Future<Lender> addPayment(String id, Map<String, dynamic> body) async {
     final res = await _dio.post('/lenders/$id/payments', data: body);
+    return Lender.fromJson(res.data['data']);
+  }
+
+  Future<Lender> update(String id, Map<String, dynamic> body) async {
+    final res = await _dio.put('/lenders/$id', data: body);
     return Lender.fromJson(res.data['data']);
   }
 
