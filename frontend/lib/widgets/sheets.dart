@@ -116,7 +116,39 @@ Future<bool> _confirmDelete(BuildContext context, String name) async {
 }
 
 String _today() => DateTime.now().toIso8601String().substring(0, 10);
-String _plus30() => DateTime.now().add(const Duration(days: 30)).toIso8601String().substring(0, 10);
+String _fmt(DateTime d) => d.toIso8601String().substring(0, 10);
+
+Widget _dateField(BuildContext context, String label, String autoHint, DateTime? value, ValueChanged<DateTime?> onChange) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 12),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Padding(padding: const EdgeInsets.only(left: 3, bottom: 6),
+          child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.mutedLight))),
+      Row(children: [
+        Expanded(
+          child: InkWell(
+            onTap: () async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: value ?? DateTime.now(),
+                firstDate: DateTime(2015),
+                lastDate: DateTime(2100),
+              );
+              if (picked != null) onChange(picked);
+            },
+            child: InputDecorator(
+              decoration: const InputDecoration(suffixIcon: Icon(Icons.calendar_today, size: 16)),
+              child: Text(value != null ? _fmt(value) : autoHint,
+                  style: TextStyle(color: value != null ? null : AppColors.mutedLight)),
+            ),
+          ),
+        ),
+        if (value != null)
+          IconButton(icon: const Icon(Icons.close, size: 18), onPressed: () => onChange(null)),
+      ]),
+    ]),
+  );
+}
 
 // ============================== PHONE ==============================
 void showPhoneSheet(BuildContext context, String name, String? phone) {
@@ -165,6 +197,8 @@ class _AddClientFormState extends ConsumerState<_AddClientForm> {
   String fundingName = 'Own capital';
   num costRate = 0;
   String? fundingLenderId;
+  DateTime? loanDate;
+  DateTime? dueDate;
 
   @override
   Widget build(BuildContext context) {
@@ -185,6 +219,11 @@ class _AddClientFormState extends ConsumerState<_AddClientForm> {
           const Padding(padding: EdgeInsets.only(left: 3, bottom: 6), child: Text('You charge %', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.mutedLight))),
           TextField(controller: rate, keyboardType: TextInputType.number, onChanged: (_) => setState(() {})),
         ])))]),
+      Row(children: [
+        Expanded(child: _dateField(context, 'Loan date', 'Today', loanDate, (d) => setState(() => loanDate = d))),
+        const SizedBox(width: 10),
+        Expanded(child: _dateField(context, 'Interest due date', 'Auto (+1 month)', dueDate, (d) => setState(() => dueDate = d))),
+      ]),
       _dropdown('Funded by (capital source)', fundingName, options, (v) {
         setState(() {
           fundingName = v == 'Own capital' ? 'Own capital' : v.split(' · ').first;
@@ -207,7 +246,9 @@ class _AddClientFormState extends ConsumerState<_AddClientForm> {
             'name': name.text.trim(), 'address': addr.text.trim(), 'phone': phone.text.trim(), 'job': job.text.trim(),
             'loan_amount': num.tryParse(loan.text) ?? 0, 'interest_rate': num.tryParse(rate.text) ?? 0,
             'cost_rate': costRate, 'funding_name': fundingName, 'funding_lender_id': fundingLenderId,
-            'interest_due_date': _plus30(), 'notes': notes.text.trim(),
+            if (loanDate != null) 'loan_start_date': _fmt(loanDate!),
+            if (dueDate != null) 'interest_due_date': _fmt(dueDate!),
+            'notes': notes.text.trim(),
           });
           if (context.mounted) { Navigator.pop(context); refreshAll(ref); toast(context, 'Client added'); }
         } catch (_) { if (context.mounted) toast(context, 'Failed to add client'); }
@@ -264,34 +305,58 @@ class _PaymentFormState extends State<_PaymentForm> {
 
 // ============================== ADD LENDER ==============================
 void showAddLenderSheet(BuildContext context, WidgetRef ref) {
+  _sheet(context, _AddLenderForm(ref));
+}
+
+class _AddLenderForm extends ConsumerStatefulWidget {
+  final WidgetRef ref;
+  const _AddLenderForm(this.ref);
+  @override
+  ConsumerState<_AddLenderForm> createState() => _AddLenderFormState();
+}
+
+class _AddLenderFormState extends ConsumerState<_AddLenderForm> {
   final name = TextEditingController(), addr = TextEditingController(), phone = TextEditingController();
   final amt = TextEditingController(), rate = TextEditingController(), notes = TextEditingController();
-  _sheet(context, Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    _grab(),
-    _head(context, 'Add lender', 'Money you borrowed'),
-    _field('Lender name', name),
-    _field('Address', addr),
-    _field('Phone', phone, type: TextInputType.phone),
-    Row(children: [Expanded(child: _field('Borrowed (Rs)', amt, type: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field('Interest %', rate, type: TextInputType.number))]),
-    _field('Notes', notes, maxLines: 2),
-    FilledButton(
-      style: FilledButton.styleFrom(backgroundColor: AppColors.borrow),
-      onPressed: () async {
-        if (name.text.trim().isEmpty || amt.text.trim().isEmpty || rate.text.trim().isEmpty) {
-          toast(context, 'Name, amount and rate are required'); return;
-        }
-        try {
-          await ref.read(lenderRepoProvider).create({
-            'lender_name': name.text.trim(), 'address': addr.text.trim(), 'phone': phone.text.trim(),
-            'borrowed_amount': num.tryParse(amt.text) ?? 0, 'interest_rate': num.tryParse(rate.text) ?? 0,
-            'interest_due_date': _plus30(), 'notes': notes.text.trim(),
-          });
-          if (context.mounted) { Navigator.pop(context); refreshAll(ref); toast(context, 'Lender added'); }
-        } catch (_) { if (context.mounted) toast(context, 'Failed to add lender'); }
-      },
-      child: const Text('Save lender'),
-    ),
-  ]));
+  DateTime? borrowDate;
+  DateTime? dueDate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _grab(),
+      _head(context, 'Add lender', 'Money you borrowed'),
+      _field('Lender name', name),
+      _field('Address', addr),
+      _field('Phone', phone, type: TextInputType.phone),
+      Row(children: [Expanded(child: _field('Borrowed (Rs)', amt, type: TextInputType.number)), const SizedBox(width: 10), Expanded(child: _field('Interest %', rate, type: TextInputType.number))]),
+      Row(children: [
+        Expanded(child: _dateField(context, 'Borrow date', 'Today', borrowDate, (d) => setState(() => borrowDate = d))),
+        const SizedBox(width: 10),
+        Expanded(child: _dateField(context, 'Interest due date', 'Auto (+1 month)', dueDate, (d) => setState(() => dueDate = d))),
+      ]),
+      _field('Notes', notes, maxLines: 2),
+      FilledButton(
+        style: FilledButton.styleFrom(backgroundColor: AppColors.borrow),
+        onPressed: () async {
+          if (name.text.trim().isEmpty || amt.text.trim().isEmpty || rate.text.trim().isEmpty) {
+            toast(context, 'Name, amount and rate are required'); return;
+          }
+          try {
+            await ref.read(lenderRepoProvider).create({
+              'lender_name': name.text.trim(), 'address': addr.text.trim(), 'phone': phone.text.trim(),
+              'borrowed_amount': num.tryParse(amt.text) ?? 0, 'interest_rate': num.tryParse(rate.text) ?? 0,
+              if (borrowDate != null) 'borrow_date': _fmt(borrowDate!),
+              if (dueDate != null) 'interest_due_date': _fmt(dueDate!),
+              'notes': notes.text.trim(),
+            });
+            if (context.mounted) { Navigator.pop(context); refreshAll(ref); toast(context, 'Lender added'); }
+          } catch (_) { if (context.mounted) toast(context, 'Failed to add lender'); }
+        },
+        child: const Text('Save lender'),
+      ),
+    ]);
+  }
 }
 
 // ============================== PAY LENDER ==============================
@@ -469,12 +534,14 @@ class _ClientDetail extends StatelessWidget {
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
           onSelected: (v) async {
+            if (v == 'edit') { Navigator.pop(context); showEditClientSheet(context, ref, c); return; }
             if (v != 'delete') return;
             if (!await _confirmDelete(context, c.name)) return;
             await ref.read(clientRepoProvider).delete(c.id);
             if (context.mounted) { Navigator.pop(context); refreshAll(ref); }
           },
           itemBuilder: (_) => [
+            const PopupMenuItem(value: 'edit', child: Text('Edit client')),
             const PopupMenuItem(value: 'delete', child: Text('Delete client', style: TextStyle(color: AppColors.over))),
           ],
         ),
@@ -559,12 +626,14 @@ class _LenderDetail extends StatelessWidget {
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert),
           onSelected: (v) async {
+            if (v == 'edit') { Navigator.pop(context); showEditLenderSheet(context, ref, l); return; }
             if (v != 'delete') return;
             if (!await _confirmDelete(context, l.name)) return;
             await ref.read(lenderRepoProvider).delete(l.id);
             if (context.mounted) { Navigator.pop(context); refreshAll(ref); }
           },
           itemBuilder: (_) => [
+            const PopupMenuItem(value: 'edit', child: Text('Edit lender')),
             const PopupMenuItem(value: 'delete', child: Text('Delete lender', style: TextStyle(color: AppColors.over))),
           ],
         ),
@@ -594,6 +663,142 @@ class _LenderDetail extends StatelessWidget {
       const SectionHeader('Payment history'),
       if (l.payments.isEmpty) Text('No payments yet.', style: TextStyle(color: mutedColor(context)))
       else ...l.payments.map((p) => historyRow(context, p.paymentType, '${longDate(p.paymentDate)} · bal ${rs(p.remainingBalance)}', rs(p.amount), AppColors.borrowInk)),
+    ]);
+  }
+}
+
+// ============================== EDIT CLIENT ==============================
+void showEditClientSheet(BuildContext context, WidgetRef ref, Client c) {
+  _sheet(context, _EditClientForm(c));
+}
+
+class _EditClientForm extends ConsumerStatefulWidget {
+  final Client c;
+  const _EditClientForm(this.c);
+  @override
+  ConsumerState<_EditClientForm> createState() => _EditClientFormState();
+}
+
+class _EditClientFormState extends ConsumerState<_EditClientForm> {
+  late final name = TextEditingController(text: widget.c.name);
+  late final addr = TextEditingController(text: widget.c.address ?? '');
+  late final phone = TextEditingController(text: widget.c.phone ?? '');
+  late final job = TextEditingController(text: widget.c.job ?? '');
+  late final rate = TextEditingController(text: widget.c.interestRate.toString());
+  late final notes = TextEditingController(text: widget.c.notes ?? '');
+  String fundingName = 'Own capital';
+  num costRate = 0;
+  String? fundingLenderId;
+  DateTime? dueDate;
+
+  @override
+  void initState() {
+    super.initState();
+    fundingName = widget.c.fundingName ?? 'Own capital';
+    costRate = widget.c.costRate;
+    fundingLenderId = widget.c.fundingLenderId;
+    final d = widget.c.interestDueDate;
+    if (d.isNotEmpty) dueDate = DateTime.tryParse(d);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lenders = ref.watch(lendersProvider).valueOrNull ?? const [];
+    final options = ['Own capital', ...lenders.map((l) => '${l.name} · ${l.interestRate}%')];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _grab(),
+      _head(context, 'Edit client', widget.c.name),
+      _field('Full name', name),
+      _field('Address', addr),
+      Row(children: [Expanded(child: _field('Phone', phone, type: TextInputType.phone)), const SizedBox(width: 10), Expanded(child: _field('Job', job))]),
+      _field('You charge %', rate, type: TextInputType.number),
+      _dropdown('Funded by (capital source)', fundingName, options, (v) {
+        setState(() {
+          fundingName = v == 'Own capital' ? 'Own capital' : v.split(' · ').first;
+          if (v == 'Own capital') { costRate = 0; fundingLenderId = null; }
+          else {
+            final l = lenders.firstWhere((x) => x.name == fundingName);
+            costRate = l.interestRate; fundingLenderId = l.id;
+          }
+        });
+      }),
+      _dateField(context, 'Interest due date', 'Auto (+1 month from loan date)', dueDate, (d) => setState(() => dueDate = d)),
+      _field('Notes', notes, maxLines: 2),
+      FilledButton(onPressed: () async {
+        if (name.text.trim().isEmpty || rate.text.trim().isEmpty) {
+          toast(context, 'Name and rate are required'); return;
+        }
+        try {
+          await ref.read(clientRepoProvider).update(widget.c.id, {
+            'name': name.text.trim(), 'address': addr.text.trim(), 'phone': phone.text.trim(), 'job': job.text.trim(),
+            'interest_rate': num.tryParse(rate.text) ?? 0, 'cost_rate': costRate,
+            'funding_name': fundingName, 'funding_lender_id': fundingLenderId,
+            if (dueDate != null) 'interest_due_date': _fmt(dueDate!),
+            'notes': notes.text.trim(),
+          });
+          if (context.mounted) { Navigator.pop(context); refreshAll(ref); toast(context, 'Client updated'); }
+        } catch (_) { if (context.mounted) toast(context, 'Failed to update client'); }
+      }, child: const Text('Save changes')),
+    ]);
+  }
+}
+
+// ============================== EDIT LENDER ==============================
+void showEditLenderSheet(BuildContext context, WidgetRef ref, Lender l) {
+  _sheet(context, _EditLenderForm(l));
+}
+
+class _EditLenderForm extends ConsumerStatefulWidget {
+  final Lender l;
+  const _EditLenderForm(this.l);
+  @override
+  ConsumerState<_EditLenderForm> createState() => _EditLenderFormState();
+}
+
+class _EditLenderFormState extends ConsumerState<_EditLenderForm> {
+  late final name = TextEditingController(text: widget.l.name);
+  late final addr = TextEditingController(text: widget.l.address ?? '');
+  late final phone = TextEditingController(text: widget.l.phone ?? '');
+  late final rate = TextEditingController(text: widget.l.interestRate.toString());
+  late final notes = TextEditingController(text: widget.l.notes ?? '');
+  DateTime? dueDate;
+
+  @override
+  void initState() {
+    super.initState();
+    final d = widget.l.interestDueDate;
+    if (d.isNotEmpty) dueDate = DateTime.tryParse(d);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _grab(),
+      _head(context, 'Edit lender', widget.l.name),
+      _field('Lender name', name),
+      _field('Address', addr),
+      _field('Phone', phone, type: TextInputType.phone),
+      _field('Interest %', rate, type: TextInputType.number),
+      _dateField(context, 'Interest due date', 'Auto (+1 month from borrow date)', dueDate, (d) => setState(() => dueDate = d)),
+      _field('Notes', notes, maxLines: 2),
+      FilledButton(
+        style: FilledButton.styleFrom(backgroundColor: AppColors.borrow),
+        onPressed: () async {
+          if (name.text.trim().isEmpty || rate.text.trim().isEmpty) {
+            toast(context, 'Name and rate are required'); return;
+          }
+          try {
+            await ref.read(lenderRepoProvider).update(widget.l.id, {
+              'lender_name': name.text.trim(), 'address': addr.text.trim(), 'phone': phone.text.trim(),
+              'interest_rate': num.tryParse(rate.text) ?? 0,
+              if (dueDate != null) 'interest_due_date': _fmt(dueDate!),
+              'notes': notes.text.trim(),
+            });
+            if (context.mounted) { Navigator.pop(context); refreshAll(ref); toast(context, 'Lender updated'); }
+          } catch (_) { if (context.mounted) toast(context, 'Failed to update lender'); }
+        },
+        child: const Text('Save changes'),
+      ),
     ]);
   }
 }
