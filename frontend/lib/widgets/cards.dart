@@ -21,14 +21,12 @@ class ClientCard extends StatelessWidget {
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(c.name, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
             const SizedBox(height: 2),
-            Row(children: [
-              GestureDetector(onTap: onPhone, child: Text(c.phone ?? '—',
-                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 12.5))),
-              if (c.marginRate > 0 && c.costRate > 0) ...[
-                Text('  ·  ', style: TextStyle(color: mutedColor(context), fontSize: 12.5)),
-                Text('▲ ${c.marginRate}% margin', style: const TextStyle(color: AppColors.paid, fontWeight: FontWeight.w800, fontSize: 12)),
-              ],
-            ]),
+            GestureDetector(onTap: onPhone, child: Text(c.phone ?? '—',
+                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 12.5))),
+            if (c.marginRate > 0 && c.costRate > 0) ...[
+              const SizedBox(height: 2),
+              Text('▲ ${c.marginRate}% margin', style: const TextStyle(color: AppColors.paid, fontWeight: FontWeight.w800, fontSize: 12)),
+            ],
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(rs(c.remainingBalance), style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),

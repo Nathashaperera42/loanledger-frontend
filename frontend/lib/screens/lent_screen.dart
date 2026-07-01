@@ -45,6 +45,7 @@ class _LentScreenState extends ConsumerState<LentScreen> {
       _search(searchCtl, 'Search by name or phone', (v) => ref.read(clientSearchProvider.notifier).state = v),
       const SizedBox(height: 12),
       _marginBanner(),
+      const SizedBox(height: 10),
       SizedBox(height: 40, child: ListView(scrollDirection: Axis.horizontal, children: [
         for (final f in const ['all', 'due-today', 'due-tom', 'overdue'])
           _chip(_filterLabel(f), filter == f, () => ref.read(clientFilterProvider.notifier).state = f),

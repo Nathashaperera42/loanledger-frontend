@@ -560,7 +560,7 @@ class _ClientDetail extends StatelessWidget {
       Row(children: [
         Expanded(child: FilledButton(onPressed: () { Navigator.pop(context); showAddPaymentSheet(context, ref, c); }, child: const Text('＋ Add payment'))),
         const SizedBox(width: 10),
-        SizedBox(width: 54, height: 52, child: OutlinedButton(onPressed: () => showPhoneSheet(context, c.name, c.phone), child: const Icon(Icons.phone))),
+        SizedBox(width: 54, height: 52, child: OutlinedButton(style: OutlinedButton.styleFrom(padding: EdgeInsets.zero), onPressed: () => showPhoneSheet(context, c.name, c.phone), child: const Icon(Icons.phone))),
       ]),
       if (c.remainingBalance <= 0) ...[
         const SizedBox(height: 10),
@@ -652,7 +652,7 @@ class _LenderDetail extends StatelessWidget {
         Expanded(child: FilledButton(style: FilledButton.styleFrom(backgroundColor: AppColors.borrow),
             onPressed: () { Navigator.pop(context); showPayLenderSheet(context, ref, l); }, child: const Text('＋ Add interest payment'))),
         const SizedBox(width: 10),
-        SizedBox(width: 54, height: 52, child: OutlinedButton(onPressed: () => showPhoneSheet(context, l.name, l.phone), child: const Icon(Icons.phone))),
+        SizedBox(width: 54, height: 52, child: OutlinedButton(style: OutlinedButton.styleFrom(padding: EdgeInsets.zero), onPressed: () => showPhoneSheet(context, l.name, l.phone), child: const Icon(Icons.phone))),
       ]),
       if (l.remainingBalance <= 0) ...[
         const SizedBox(height: 10),
