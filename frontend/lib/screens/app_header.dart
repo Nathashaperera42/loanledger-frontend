@@ -76,16 +76,76 @@ void _showSettings(BuildContext context, WidgetRef ref) {
             const ListTile(leading: Icon(Icons.attach_money), title: Text('Currency'), subtitle: Text('Sri Lankan Rupee (LKR)')),
           ])),
           const SizedBox(height: 14),
-          AppCard(padding: EdgeInsets.zero, child: ListTile(
-            leading: const Icon(Icons.logout, color: AppColors.over),
-            title: const Text('Sign out', style: TextStyle(color: AppColors.over)),
-            onTap: () async {
-              await r.read(authRepoProvider).logout();
-              if (context.mounted) {
-                Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+          AppCard(padding: EdgeInsets.zero, child: Column(children: [
+            ListTile(
+              leading: const Icon(Icons.lock_outline),
+              title: const Text('Change password'),
+              onTap: () { Navigator.pop(context); _showChangePassword(context, r); },
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.logout, color: AppColors.over),
+              title: const Text('Sign out', style: TextStyle(color: AppColors.over)),
+              onTap: () async {
+                await r.read(authRepoProvider).logout();
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
+                }
+              },
+            ),
+          ])),
+        ]),
+      );
+    }),
+  );
+}
+
+void _showChangePassword(BuildContext context, WidgetRef ref) {
+  final currentCtl = TextEditingController();
+  final newCtl = TextEditingController();
+  final confirmCtl = TextEditingController();
+  bool loading = false;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(26))),
+    builder: (ctx) => StatefulBuilder(builder: (ctx, setState) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(20, 14, 20, MediaQuery.of(ctx).viewInsets.bottom + 30),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Center(child: Container(width: 38, height: 4, margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(color: Colors.grey.withValues(alpha: .4), borderRadius: BorderRadius.circular(4)))),
+          const Text('Change password', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 16),
+          TextField(controller: currentCtl, obscureText: true, decoration: const InputDecoration(labelText: 'Current password')),
+          const SizedBox(height: 12),
+          TextField(controller: newCtl, obscureText: true, decoration: const InputDecoration(labelText: 'New password')),
+          const SizedBox(height: 12),
+          TextField(controller: confirmCtl, obscureText: true, decoration: const InputDecoration(labelText: 'Confirm new password')),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: loading ? null : () async {
+              if (newCtl.text != confirmCtl.text) {
+                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+                return;
               }
+              if (newCtl.text.length < 6) {
+                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Password must be at least 6 characters')));
+                return;
+              }
+              setState(() => loading = true);
+              try {
+                await ref.read(authRepoProvider).changePassword(currentCtl.text, newCtl.text);
+                if (ctx.mounted) { Navigator.pop(ctx); ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Password changed successfully'))); }
+              } catch (_) {
+                if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Current password is incorrect')));
+              }
+              setState(() => loading = false);
             },
-          )),
+            child: loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Save new password'),
+          ),
         ]),
       );
     }),

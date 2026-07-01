@@ -18,6 +18,10 @@ class AuthRepository {
     final res = await _dio.get('/auth/me');
     return Map<String, dynamic>.from(res.data['user']);
   }
+
+  Future<void> changePassword(String currentPassword, String newPassword) async {
+    await _dio.post('/auth/change-password', data: {'currentPassword': currentPassword, 'newPassword': newPassword});
+  }
 }
 
 class ClientRepository {

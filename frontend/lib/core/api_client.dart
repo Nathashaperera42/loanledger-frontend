@@ -4,7 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// Change this to your deployed backend URL.
 /// Android emulator -> http://10.0.2.2:4000/api
 /// Real device on same wifi -> http://<your-pc-ip>:4000/api
-const String kApiBaseUrl = 'https://backend-cvbd.onrender.com/api';
+const String kApiBaseUrl = 'https://backend-psi-peach-87.vercel.app/api';
 
 class ApiClient {
   ApiClient._();
