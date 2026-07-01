@@ -34,7 +34,7 @@ class AppHeader extends ConsumerWidget {
           onTap: () => _showSettings(context, ref),
           child: Container(width: 40, height: 40,
               decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFEF4444)]), borderRadius: BorderRadius.circular(12)),
-              alignment: Alignment.center, child: const Text('JS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14))),
+              alignment: Alignment.center, child: const Text('A', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14))),
         ),
       ]),
     );
@@ -57,7 +57,7 @@ void _showSettings(BuildContext context, WidgetRef ref) {
           AppCard(child: Row(children: [
             Container(width: 56, height: 56,
                 decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFFF59E0B), Color(0xFFEF4444)]), borderRadius: BorderRadius.circular(16)),
-                alignment: Alignment.center, child: const Text('JS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20))),
+                alignment: Alignment.center, child: const Text('A', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20))),
             const SizedBox(width: 14),
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Administrator', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
@@ -105,6 +105,11 @@ void _showChangePassword(BuildContext context, WidgetRef ref) {
   final newCtl = TextEditingController();
   final confirmCtl = TextEditingController();
   bool loading = false;
+  String? error;
+  bool success = false;
+  bool showCurrent = false;
+  bool showNew = false;
+  bool showConfirm = false;
 
   showModalBottomSheet(
     context: context,
@@ -119,32 +124,96 @@ void _showChangePassword(BuildContext context, WidgetRef ref) {
               decoration: BoxDecoration(color: Colors.grey.withValues(alpha: .4), borderRadius: BorderRadius.circular(4)))),
           const Text('Change password', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
           const SizedBox(height: 16),
-          TextField(controller: currentCtl, obscureText: true, decoration: const InputDecoration(labelText: 'Current password')),
+          TextField(
+            controller: currentCtl,
+            obscureText: !showCurrent,
+            onChanged: (_) => setState(() { error = null; success = false; }),
+            decoration: InputDecoration(
+              labelText: 'Current password',
+              suffixIcon: IconButton(
+                icon: Icon(showCurrent ? Icons.visibility : Icons.visibility_off, size: 20),
+                onPressed: () => setState(() => showCurrent = !showCurrent),
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
-          TextField(controller: newCtl, obscureText: true, decoration: const InputDecoration(labelText: 'New password')),
+          TextField(
+            controller: newCtl,
+            obscureText: !showNew,
+            onChanged: (_) => setState(() { error = null; success = false; }),
+            decoration: InputDecoration(
+              labelText: 'New password',
+              suffixIcon: IconButton(
+                icon: Icon(showNew ? Icons.visibility : Icons.visibility_off, size: 20),
+                onPressed: () => setState(() => showNew = !showNew),
+              ),
+            ),
+          ),
           const SizedBox(height: 12),
-          TextField(controller: confirmCtl, obscureText: true, decoration: const InputDecoration(labelText: 'Confirm new password')),
+          TextField(
+            controller: confirmCtl,
+            obscureText: !showConfirm,
+            onChanged: (_) => setState(() { error = null; success = false; }),
+            decoration: InputDecoration(
+              labelText: 'Confirm new password',
+              suffixIcon: IconButton(
+                icon: Icon(showConfirm ? Icons.visibility : Icons.visibility_off, size: 20),
+                onPressed: () => setState(() => showConfirm = !showConfirm),
+              ),
+            ),
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 10),
+            Row(children: [
+              const Icon(Icons.error_outline, color: AppColors.over, size: 16),
+              const SizedBox(width: 6),
+              Expanded(child: Text(error!, style: const TextStyle(color: AppColors.over, fontSize: 13, fontWeight: FontWeight.w600))),
+            ]),
+          ],
+          if (success) ...[
+            const SizedBox(height: 10),
+            const Row(children: [
+              Icon(Icons.check_circle_outline, color: AppColors.paid, size: 16),
+              SizedBox(width: 6),
+              Text('Password changed successfully!', style: TextStyle(color: AppColors.paid, fontSize: 13, fontWeight: FontWeight.w600)),
+            ]),
+          ],
           const SizedBox(height: 20),
           FilledButton(
             onPressed: loading ? null : () async {
-              if (newCtl.text != confirmCtl.text) {
-                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+              final current = currentCtl.text.trim();
+              final next = newCtl.text;
+              final confirm = confirmCtl.text;
+              if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
+                setState(() => error = 'All fields are required');
                 return;
               }
-              if (newCtl.text.length < 6) {
-                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Password must be at least 6 characters')));
+              if (next.length < 6) {
+                setState(() => error = 'New password must be at least 6 characters');
                 return;
               }
-              setState(() => loading = true);
+              if (next != confirm) {
+                setState(() => error = 'New passwords do not match');
+                return;
+              }
+              setState(() { loading = true; error = null; success = false; });
               try {
-                await ref.read(authRepoProvider).changePassword(currentCtl.text, newCtl.text);
-                if (ctx.mounted) { Navigator.pop(ctx); ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Password changed successfully'))); }
-              } catch (_) {
-                if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Current password is incorrect')));
+                await ref.read(authRepoProvider).changePassword(current, next);
+                if (ctx.mounted) setState(() { loading = false; success = true; });
+                await Future.delayed(const Duration(seconds: 1));
+                if (ctx.mounted) Navigator.pop(ctx);
+              } catch (e) {
+                String msg = 'Something went wrong. Try again.';
+                try {
+                  final data = (e as dynamic).response?.data;
+                  if (data != null && data['error'] != null) msg = data['error'].toString();
+                } catch (_) {}
+                if (ctx.mounted) setState(() { loading = false; error = msg; });
               }
-              setState(() => loading = false);
             },
-            child: loading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Save new password'),
+            child: loading
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Save new password'),
           ),
         ]),
       );
