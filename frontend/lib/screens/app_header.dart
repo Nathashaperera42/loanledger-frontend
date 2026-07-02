@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+2import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/colors.dart';
 import '../providers/providers.dart';
@@ -101,6 +101,7 @@ void _showSettings(BuildContext context, WidgetRef ref) {
 }
 
 void _showChangePassword(BuildContext context, WidgetRef ref) {
+  final authRepo = ref.read(authRepoProvider); // capture before sheet opens
   final currentCtl = TextEditingController();
   final newCtl = TextEditingController();
   final confirmCtl = TextEditingController();
@@ -198,16 +199,22 @@ void _showChangePassword(BuildContext context, WidgetRef ref) {
               }
               setState(() { loading = true; error = null; success = false; });
               try {
-                await ref.read(authRepoProvider).changePassword(current, next);
+                await authRepo.changePassword(current, next);
                 if (ctx.mounted) setState(() { loading = false; success = true; });
                 await Future.delayed(const Duration(seconds: 1));
                 if (ctx.mounted) Navigator.pop(ctx);
               } catch (e) {
-                String msg = 'Something went wrong. Try again.';
+                String msg;
                 try {
                   final data = (e as dynamic).response?.data;
-                  if (data != null && data['error'] != null) msg = data['error'].toString();
-                } catch (_) {}
+                  if (data != null && data['error'] != null) {
+                    msg = data['error'].toString();
+                  } else {
+                    msg = '${e.runtimeType}: $e';
+                  }
+                } catch (_) {
+                  msg = '${e.runtimeType}: $e';
+                }
                 if (ctx.mounted) setState(() { loading = false; error = msg; });
               }
             },

@@ -47,7 +47,7 @@ class ApiClient {
       },
       onError: (e, handler) async {
         // Try a single refresh on 401, then replay the request.
-        if (e.response?.statusCode == 401 && e.requestOptions.path != '/auth/refresh') {
+        if (e.response?.statusCode == 401 && e.requestOptions.path != '/auth/refresh' && e.requestOptions.path != '/auth/change-password') {
           final rt = await refreshToken;
           if (rt != null) {
             try {
