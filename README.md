@@ -44,10 +44,6 @@ flutter build apk --release
 # output: build/app/outputs/flutter-apk/app-release.apk
 ```
 
-## 4. Log in
-Use the admin you created in the backend (e.g. `admin@loanledger.lk`).
-The email is pre-filled on the login screen for convenience — change it.
-
 ## Project layout
 ```
 lib/
